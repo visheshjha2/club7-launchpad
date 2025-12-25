@@ -81,6 +81,7 @@ export default function Checkout() {
         .from('orders')
         .insert([{
           user_id: user.id,
+          order_number: 'TEMP', // Will be overwritten by database trigger
           status: 'pending',
           subtotal,
           shipping_cost: shippingCost,
