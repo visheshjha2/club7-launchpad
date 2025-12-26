@@ -11,13 +11,23 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { formatPrice } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Loader2, CreditCard, AlertTriangle } from 'lucide-react';
+import { Loader2, Banknote, Smartphone, Copy, CheckCircle2 } from 'lucide-react';
+
+const BANK_DETAILS = {
+  accountHolder: 'Haji Ashraf',
+  bankName: 'ICICI Bank',
+  accountNumber: '105005001234',
+  ifscCode: 'ICIC0001050',
+  upiId: '8630105022@ibl'
+};
 
 export default function Checkout() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { items, subtotal, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'upi' | 'bank'>('upi');
   
   const [formData, setFormData] = useState({
     full_name: '',
@@ -36,6 +46,13 @@ export default function Checkout() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(field);
+    toast.success('Copied to clipboard!');
+    setTimeout(() => setCopied(null), 2000);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,13 +98,13 @@ export default function Checkout() {
         .from('orders')
         .insert([{
           user_id: user.id,
-          order_number: 'TEMP', // Will be overwritten by database trigger
+          order_number: 'TEMP',
           status: 'pending',
           subtotal,
           shipping_cost: shippingCost,
           total,
           payment_status: 'pending',
-          payment_method: 'pending',
+          payment_method: paymentMethod === 'upi' ? 'UPI' : 'Bank Transfer',
           shipping_name: formData.full_name,
           shipping_phone: formData.phone,
           shipping_email: formData.email,
@@ -126,7 +143,7 @@ export default function Checkout() {
 
       // Navigate to success page
       navigate(`/order-success/${order.id}`);
-      toast.success('Order placed successfully!');
+      toast.success('Order placed! Please complete payment using the details provided.');
 
     } catch (error: any) {
       console.error('Checkout error:', error);
@@ -157,17 +174,6 @@ export default function Checkout() {
           <h1 className="font-display text-3xl font-bold mb-8">
             <span className="text-gradient-gold">Checkout</span>
           </h1>
-
-          {/* Payment Gateway Notice */}
-          <div className="mb-8 p-4 rounded-lg bg-warning/10 border border-warning/30 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-warning">Payment Gateway Not Configured</p>
-              <p className="text-sm text-muted-foreground">
-                Orders will be placed with pending payment status. Admin will configure UPI/Net Banking soon.
-              </p>
-            </div>
-          </div>
 
           <form onSubmit={handleSubmit}>
             <div className="grid lg:grid-cols-3 gap-8">
@@ -279,18 +285,110 @@ export default function Checkout() {
                 {/* Payment Method */}
                 <div className="p-6 rounded-lg bg-card border border-border">
                   <h2 className="font-display text-xl font-semibold mb-4">Payment Method</h2>
-                  <div className="space-y-3">
-                    <div className="p-4 rounded-lg border border-border bg-muted/50 flex items-center gap-3">
-                      <CreditCard className="h-5 w-5 text-primary" />
-                      <div>
-                        <p className="font-medium">UPI / Net Banking</p>
-                        <p className="text-sm text-muted-foreground">
-                          Payment gateway will be configured by admin
+                  
+                  <div className="space-y-4">
+                    {/* Payment Options */}
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('upi')}
+                        className={`p-4 rounded-lg border-2 flex items-center gap-3 transition-colors ${
+                          paymentMethod === 'upi' 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <Smartphone className="h-5 w-5 text-primary" />
+                        <div className="text-left">
+                          <p className="font-medium">UPI Payment</p>
+                          <p className="text-xs text-muted-foreground">Pay via any UPI app</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('bank')}
+                        className={`p-4 rounded-lg border-2 flex items-center gap-3 transition-colors ${
+                          paymentMethod === 'bank' 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <Banknote className="h-5 w-5 text-primary" />
+                        <div className="text-left">
+                          <p className="font-medium">Bank Transfer</p>
+                          <p className="text-xs text-muted-foreground">NEFT / IMPS / RTGS</p>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* UPI Details */}
+                    {paymentMethod === 'upi' && (
+                      <div className="p-4 rounded-lg bg-muted/50 space-y-3">
+                        <p className="text-sm font-medium">UPI ID</p>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 p-3 rounded bg-background border border-border font-mono text-lg">
+                            {BANK_DETAILS.upiId}
+                          </code>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => copyToClipboard(BANK_DETAILS.upiId, 'upi')}
+                          >
+                            {copied === 'upi' ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Pay using PhonePe, Google Pay, Paytm, or any UPI app
                         </p>
                       </div>
-                    </div>
+                    )}
+
+                    {/* Bank Details */}
+                    {paymentMethod === 'bank' && (
+                      <div className="p-4 rounded-lg bg-muted/50 space-y-3">
+                        <div className="grid gap-3 text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Account Holder</span>
+                            <span className="font-medium">{BANK_DETAILS.accountHolder}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Bank Name</span>
+                            <span className="font-medium">{BANK_DETAILS.bankName}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Account Number</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono">{BANK_DETAILS.accountNumber}</span>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(BANK_DETAILS.accountNumber, 'account')}
+                                className="text-muted-foreground hover:text-foreground"
+                              >
+                                {copied === 'account' ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">IFSC Code</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono">{BANK_DETAILS.ifscCode}</span>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(BANK_DETAILS.ifscCode, 'ifsc')}
+                                className="text-muted-foreground hover:text-foreground"
+                              >
+                                {copied === 'ifsc' ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <p className="text-sm text-muted-foreground">
-                      Note: Cash on Delivery (COD) is not available.
+                      After placing your order, complete the payment and your order will be processed once payment is verified.
+                      <br /><span className="text-destructive">Note: Cash on Delivery (COD) is not available.</span>
                     </p>
                   </div>
                 </div>
