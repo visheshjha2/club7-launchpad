@@ -4,11 +4,27 @@ import { Link, useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Order } from '@/types';
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Package, ChevronRight, ShoppingBag } from 'lucide-react';
+import { Package, ChevronRight, ShoppingBag, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+
+interface OrderItem {
+  id: string;
+  product_name: string;
+  product_image: string | null;
+  quantity: number;
+}
+
+interface Order {
+  id: string;
+  order_number: string;
+  status: string;
+  payment_status: string;
+  total: number;
+  created_at: string;
+  items?: OrderItem[];
+}
 
 export default function Orders() {
   const { user } = useAuth();
@@ -43,8 +59,10 @@ export default function Orders() {
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'delivered':
+      case 'completed':
         return 'text-success bg-success/10';
       case 'shipped':
+      case 'packed':
         return 'text-primary bg-primary/10';
       case 'processing':
         return 'text-warning bg-warning/10';
@@ -52,6 +70,35 @@ export default function Orders() {
         return 'text-destructive bg-destructive/10';
       default:
         return 'text-muted-foreground bg-muted';
+    }
+  };
+
+  const getPaymentStatusInfo = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return {
+          color: 'text-success bg-success/10',
+          icon: CheckCircle,
+          label: 'Payment Approved'
+        };
+      case 'rejected':
+        return {
+          color: 'text-destructive bg-destructive/10',
+          icon: XCircle,
+          label: 'Payment Rejected'
+        };
+      case 'pending':
+        return {
+          color: 'text-warning bg-warning/10',
+          icon: Clock,
+          label: 'Payment Pending'
+        };
+      default:
+        return {
+          color: 'text-muted-foreground bg-muted',
+          icon: AlertCircle,
+          label: status
+        };
     }
   };
 
@@ -86,65 +133,108 @@ export default function Orders() {
             </div>
           ) : (
             <div className="space-y-4">
-              {orders.map((order) => (
-                <div
-                  key={order.id}
-                  className="p-6 rounded-lg bg-card border border-border hover:border-primary/50 transition-colors"
-                >
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-lg bg-primary/10">
-                        <Package className="h-6 w-6 text-primary" />
+              {orders.map((order) => {
+                const paymentInfo = getPaymentStatusInfo(order.payment_status);
+                const PaymentIcon = paymentInfo.icon;
+                
+                return (
+                  <div
+                    key={order.id}
+                    className="p-6 rounded-lg bg-card border border-border hover:border-primary/50 transition-colors"
+                  >
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 rounded-lg bg-primary/10">
+                          <Package className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-mono text-sm text-muted-foreground mb-1">
+                            {order.order_number}
+                          </p>
+                          <p className="font-semibold text-lg mb-1">
+                            {formatPrice(order.total)}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(order.created_at), 'PPP')}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-mono text-sm text-muted-foreground mb-1">
-                          {order.order_number}
-                        </p>
-                        <p className="font-semibold text-lg mb-1">
-                          {formatPrice(order.total)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(order.created_at), 'PPP')}
-                        </p>
+
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                        {/* Order Status */}
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${getStatusColor(order.status)}`}>
+                          {order.status}
+                        </span>
+                        
+                        {/* Payment Status with Icon */}
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize flex items-center gap-1.5 ${paymentInfo.color}`}>
+                          <PaymentIcon className="h-4 w-4" />
+                          {paymentInfo.label}
+                        </span>
+                        
+                        <ChevronRight className="h-5 w-5 text-muted-foreground hidden md:block" />
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${getStatusColor(order.status)}`}>
-                        {order.status}
-                      </span>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${getStatusColor(order.payment_status)}`}>
-                        {order.payment_status}
-                      </span>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                    </div>
+                    {/* Payment Status Message */}
+                    {order.payment_status === 'pending' && (
+                      <div className="mt-4 p-3 rounded-lg bg-warning/5 border border-warning/20 text-sm">
+                        <p className="text-warning flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          Your payment is being verified. We'll update the status soon.
+                        </p>
+                      </div>
+                    )}
+                    
+                    {order.payment_status === 'approved' && (
+                      <div className="mt-4 p-3 rounded-lg bg-success/5 border border-success/20 text-sm">
+                        <p className="text-success flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4" />
+                          Payment verified! Your order is being processed.
+                        </p>
+                      </div>
+                    )}
+                    
+                    {order.payment_status === 'rejected' && (
+                      <div className="mt-4 p-3 rounded-lg bg-destructive/5 border border-destructive/20 text-sm">
+                        <p className="text-destructive flex items-center gap-2">
+                          <XCircle className="h-4 w-4" />
+                          Payment could not be verified. Please contact support.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Order Items Preview */}
+                    {order.items && order.items.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-border flex gap-2 overflow-x-auto">
+                        {order.items.slice(0, 4).map((item) => (
+                          <div key={item.id} className="flex-shrink-0">
+                            <div className="w-16 h-16 rounded bg-muted relative">
+                              {item.product_image && (
+                                <img
+                                  src={item.product_image}
+                                  alt={item.product_name}
+                                  className="w-full h-full object-cover rounded"
+                                />
+                              )}
+                              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                                {item.quantity}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                        {order.items.length > 4 && (
+                          <div className="flex-shrink-0 w-16 h-16 rounded bg-muted flex items-center justify-center">
+                            <span className="text-sm text-muted-foreground">
+                              +{order.items.length - 4}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-
-                  {/* Order Items Preview */}
-                  {order.items && order.items.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-border flex gap-2 overflow-x-auto">
-                      {order.items.slice(0, 4).map((item) => (
-                        <div key={item.id} className="flex-shrink-0 w-16 h-16 rounded bg-muted">
-                          {item.product_image && (
-                            <img
-                              src={item.product_image}
-                              alt={item.product_name}
-                              className="w-full h-full object-cover rounded"
-                            />
-                          )}
-                        </div>
-                      ))}
-                      {order.items.length > 4 && (
-                        <div className="flex-shrink-0 w-16 h-16 rounded bg-muted flex items-center justify-center">
-                          <span className="text-sm text-muted-foreground">
-                            +{order.items.length - 4}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

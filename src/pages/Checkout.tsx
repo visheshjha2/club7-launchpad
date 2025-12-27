@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { formatPrice } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Loader2, Banknote, Smartphone, Copy, CheckCircle2 } from 'lucide-react';
+import { Loader2, Banknote, Smartphone, Copy, CheckCircle2, Upload, Image } from 'lucide-react';
 
 const BANK_DETAILS = {
   accountHolder: 'Haji Ashraf',
@@ -28,6 +28,9 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'bank'>('upi');
+  const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   
   const [formData, setFormData] = useState({
     full_name: '',
@@ -53,6 +56,44 @@ export default function Checkout() {
     setCopied(field);
     toast.success('Copied to clipboard!');
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size should be less than 5MB');
+        return;
+      }
+      setPaymentScreenshot(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshotPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadScreenshot = async (orderId: string): Promise<string | null> => {
+    if (!paymentScreenshot) return null;
+    
+    const fileExt = paymentScreenshot.name.split('.').pop();
+    const fileName = `${orderId}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('payment-screenshots')
+      .upload(fileName, paymentScreenshot, { upsert: true });
+      
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return null;
+    }
+    
+    const { data: urlData } = supabase.storage
+      .from('payment-screenshots')
+      .getPublicUrl(fileName);
+      
+    return urlData.publicUrl;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -90,6 +131,12 @@ export default function Checkout() {
       return;
     }
 
+    // Validate payment screenshot
+    if (!paymentScreenshot) {
+      toast.error('Please upload payment screenshot to place order');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -119,6 +166,18 @@ export default function Checkout() {
 
       if (orderError) throw orderError;
 
+      // Upload payment screenshot
+      setUploadingScreenshot(true);
+      const screenshotUrl = await uploadScreenshot(order.id);
+      
+      if (screenshotUrl) {
+        await supabase
+          .from('orders')
+          .update({ payment_screenshot_url: screenshotUrl })
+          .eq('id', order.id);
+      }
+      setUploadingScreenshot(false);
+
       // Create order items
       const orderItems = items.map(item => ({
         order_id: order.id,
@@ -143,13 +202,14 @@ export default function Checkout() {
 
       // Navigate to success page
       navigate(`/order-success/${order.id}`);
-      toast.success('Order placed! Please complete payment using the details provided.');
+      toast.success('Order placed! Payment verification in progress.');
 
     } catch (error: any) {
       console.error('Checkout error:', error);
       toast.error('Failed to place order. Please try again.');
     } finally {
       setLoading(false);
+      setUploadingScreenshot(false);
     }
   };
 
@@ -386,8 +446,57 @@ export default function Checkout() {
                       </div>
                     )}
 
+                    {/* Payment Screenshot Upload */}
+                    <div className="p-4 rounded-lg bg-warning/10 border border-warning/20">
+                      <h3 className="font-semibold mb-2 flex items-center gap-2">
+                        <Upload className="h-4 w-4" />
+                        Upload Payment Screenshot *
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Complete the payment using the above details and upload a screenshot as proof.
+                      </p>
+                      
+                      <div className="space-y-3">
+                        <input
+                          type="file"
+                          id="payment-screenshot"
+                          accept="image/*"
+                          onChange={handleScreenshotChange}
+                          className="hidden"
+                        />
+                        <label
+                          htmlFor="payment-screenshot"
+                          className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors"
+                        >
+                          {screenshotPreview ? (
+                            <img 
+                              src={screenshotPreview} 
+                              alt="Payment Screenshot Preview" 
+                              className="max-h-48 rounded-lg"
+                            />
+                          ) : (
+                            <>
+                              <Image className="h-10 w-10 text-muted-foreground mb-2" />
+                              <span className="text-sm text-muted-foreground">
+                                Click to upload payment screenshot
+                              </span>
+                              <span className="text-xs text-muted-foreground mt-1">
+                                Max 5MB (JPG, PNG)
+                              </span>
+                            </>
+                          )}
+                        </label>
+                        {paymentScreenshot && (
+                          <p className="text-sm text-success flex items-center gap-1">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {paymentScreenshot.name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
                     <p className="text-sm text-muted-foreground">
-                      After placing your order, complete the payment and your order will be processed once payment is verified.
+                      Your order will be processed once payment is verified by our team.
                       <br /><span className="text-destructive">Note: Cash on Delivery (COD) is not available.</span>
                     </p>
                   </div>
@@ -430,30 +539,40 @@ export default function Checkout() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Shipping</span>
-                      <span>{shippingCost === 0 ? 'Free' : formatPrice(shippingCost)}</span>
+                      <span>{shippingCost === 0 ? 'FREE' : formatPrice(shippingCost)}</span>
                     </div>
-                    <div className="flex justify-between font-semibold text-lg pt-3 border-t border-border">
+                    {subtotal < 2999 && (
+                      <p className="text-xs text-muted-foreground">
+                        Free shipping on orders above ₹2,999
+                      </p>
+                    )}
+                    <div className="flex justify-between font-semibold text-lg pt-2 border-t border-border">
                       <span>Total</span>
-                      <span className="text-primary">{formatPrice(total)}</span>
+                      <span className="text-gradient-gold">{formatPrice(total)}</span>
                     </div>
                   </div>
 
                   <Button
                     type="submit"
                     variant="gold"
-                    size="lg"
                     className="w-full"
-                    disabled={loading}
+                    disabled={loading || !paymentScreenshot}
                   >
                     {loading ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Processing...
+                        {uploadingScreenshot ? 'Uploading...' : 'Placing Order...'}
                       </>
                     ) : (
                       'Place Order'
                     )}
                   </Button>
+                  
+                  {!paymentScreenshot && (
+                    <p className="text-xs text-destructive text-center mt-2">
+                      Please upload payment screenshot to place order
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
