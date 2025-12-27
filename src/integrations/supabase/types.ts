@@ -268,6 +268,7 @@ export type Database = {
           order_number: string
           payment_id: string | null
           payment_method: string | null
+          payment_screenshot_url: string | null
           payment_status: string
           shipping_address: string
           shipping_city: string
@@ -290,6 +291,7 @@ export type Database = {
           order_number: string
           payment_id?: string | null
           payment_method?: string | null
+          payment_screenshot_url?: string | null
           payment_status?: string
           shipping_address: string
           shipping_city: string
@@ -312,6 +314,7 @@ export type Database = {
           order_number?: string
           payment_id?: string | null
           payment_method?: string | null
+          payment_screenshot_url?: string | null
           payment_status?: string
           shipping_address?: string
           shipping_city?: string
