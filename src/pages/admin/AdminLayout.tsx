@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, Package, ShoppingCart, FolderOpen, Trophy, Settings, MessageSquare, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FolderOpen, Trophy, Settings, MessageSquare, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navItems = [
@@ -54,16 +54,6 @@ export default function AdminLayout() {
 
       {/* Main Content */}
       <main className="flex-1 p-6 lg:p-8 overflow-auto">
-        {/* Setup Reminder */}
-        <div className="mb-6 p-4 rounded-lg bg-warning/10 border border-warning/30 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-medium text-warning">Setup Required</p>
-            <p className="text-sm text-muted-foreground">
-              Configure payment gateway, SMTP, and upload hero images in Settings to complete store setup.
-            </p>
-          </div>
-        </div>
         <Outlet />
       </main>
     </div>
