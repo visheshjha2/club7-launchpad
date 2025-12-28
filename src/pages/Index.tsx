@@ -6,6 +6,7 @@ import AchievementsSection from '@/components/home/AchievementsSection';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import club7Logo from '@/assets/club7-logo.png';
 
 export default function Index() {
   return (
@@ -64,23 +65,22 @@ export default function Index() {
 
               <div className="relative">
                 <div className="aspect-square rounded-2xl overflow-hidden border border-border">
-                  <div className="w-full h-full bg-gradient-to-br from-charcoal-light to-background flex items-center justify-center">
-                    <div className="text-center p-8">
-                      <h3 className="font-display text-5xl font-bold text-gradient-gold mb-2">10+</h3>
-                      <p className="text-muted-foreground">Years of Excellence</p>
-                    </div>
-                  </div>
+                  <img 
+                    src={club7Logo} 
+                    alt="Club7overseas - 10+ Years of Excellence" 
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 
                 {/* Stats Cards */}
-                <div className="absolute -bottom-6 -left-6 p-4 rounded-lg bg-card border border-border shadow-card">
-                  <div className="text-2xl font-bold text-primary">10K+</div>
-                  <div className="text-sm text-muted-foreground">Happy Customers</div>
+                <div className="absolute -bottom-4 -left-4 sm:-bottom-6 sm:-left-6 p-3 sm:p-4 rounded-lg bg-card border border-border shadow-card">
+                  <div className="text-xl sm:text-2xl font-bold text-primary">10K+</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">Happy Customers</div>
                 </div>
                 
-                <div className="absolute -top-6 -right-6 p-4 rounded-lg bg-card border border-border shadow-card">
-                  <div className="text-2xl font-bold text-primary">500+</div>
-                  <div className="text-sm text-muted-foreground">Product Designs</div>
+                <div className="absolute -top-4 -right-4 sm:-top-6 sm:-right-6 p-3 sm:p-4 rounded-lg bg-card border border-border shadow-card">
+                  <div className="text-xl sm:text-2xl font-bold text-primary">500+</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">Product Designs</div>
                 </div>
               </div>
             </div>

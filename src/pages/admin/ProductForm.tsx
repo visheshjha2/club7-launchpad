@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { generateSlug } from '@/lib/utils';
+import { getColorFromName } from '@/lib/colorUtils';
 import { toast } from 'sonner';
 import { Loader2, Upload, X, Plus, Trash2 } from 'lucide-react';
 import { Category } from '@/types';
@@ -145,7 +146,21 @@ export default function AdminProductForm() {
   };
 
   const updateVariant = (index: number, field: keyof ProductVariant, value: string | number) => {
-    setVariants(prev => prev.map((v, i) => i === index ? { ...v, [field]: value } : v));
+    setVariants(prev => prev.map((v, i) => {
+      if (i !== index) return v;
+      
+      const updated = { ...v, [field]: value };
+      
+      // Auto-update color_hex when color name changes
+      if (field === 'color' && typeof value === 'string') {
+        const autoHex = getColorFromName(value);
+        if (autoHex !== '#666666') {
+          updated.color_hex = autoHex;
+        }
+      }
+      
+      return updated;
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -387,56 +402,65 @@ export default function AdminProductForm() {
           
           <div className="space-y-4">
             {variants.map((variant, index) => (
-              <div key={index} className="grid grid-cols-12 gap-3 items-end p-4 bg-muted/50 rounded-lg">
-                <div className="col-span-3 space-y-2">
-                  <Label className="text-xs">Size</Label>
-                  <Select value={variant.size} onValueChange={(v) => updateVariant(index, 'size', v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sizes.map(s => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-3 space-y-2">
-                  <Label className="text-xs">Color Name</Label>
-                  <Input 
-                    value={variant.color}
-                    onChange={(e) => updateVariant(index, 'color', e.target.value)}
-                    placeholder="Black"
-                  />
-                </div>
-                <div className="col-span-2 space-y-2">
-                  <Label className="text-xs">Color</Label>
-                  <Input 
-                    type="color"
-                    value={variant.color_hex}
-                    onChange={(e) => updateVariant(index, 'color_hex', e.target.value)}
-                    className="h-10 p-1"
-                  />
-                </div>
-                <div className="col-span-3 space-y-2">
-                  <Label className="text-xs">Stock</Label>
-                  <Input 
-                    type="number"
-                    value={variant.stock_quantity}
-                    onChange={(e) => updateVariant(index, 'stock_quantity', parseInt(e.target.value) || 0)}
-                    min="0"
-                  />
-                </div>
-                <div className="col-span-1">
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={() => removeVariant(index)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+              <div key={index} className="p-4 bg-muted/50 rounded-lg space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Size</Label>
+                    <Select value={variant.size} onValueChange={(v) => updateVariant(index, 'size', v)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sizes.map(s => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Color Name</Label>
+                    <Input 
+                      value={variant.color}
+                      onChange={(e) => updateVariant(index, 'color', e.target.value)}
+                      placeholder="Black"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Color</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="color"
+                        value={variant.color_hex}
+                        onChange={(e) => updateVariant(index, 'color_hex', e.target.value)}
+                        className="h-10 w-14 p-1 flex-shrink-0"
+                      />
+                      <div 
+                        className="flex-1 h-10 rounded-md border border-border"
+                        style={{ backgroundColor: variant.color_hex }}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Stock</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="number"
+                        value={variant.stock_quantity}
+                        onChange={(e) => updateVariant(index, 'stock_quantity', parseInt(e.target.value) || 0)}
+                        min="0"
+                        className="flex-1"
+                      />
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => removeVariant(index)}
+                        className="text-destructive hover:text-destructive flex-shrink-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -444,12 +468,12 @@ export default function AdminProductForm() {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-4">
-          <Button type="submit" variant="gold" disabled={loading}>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Button type="submit" variant="gold" disabled={loading} className="sm:w-auto">
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             {isEditing ? 'Update Product' : 'Create Product'}
           </Button>
-          <Button type="button" variant="outline" onClick={() => navigate('/admin/products')}>
+          <Button type="button" variant="outline" onClick={() => navigate('/admin/products')} className="sm:w-auto">
             Cancel
           </Button>
         </div>
