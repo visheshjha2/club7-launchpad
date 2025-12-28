@@ -8,6 +8,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/utils';
+import { getColorFromName } from '@/lib/colorUtils';
 import { toast } from 'sonner';
 import { ShoppingBag, Heart, Minus, Plus, ChevronLeft, ChevronRight, Truck, Shield, RotateCcw } from 'lucide-react';
 
@@ -244,19 +245,22 @@ export default function ProductDetail() {
                 <div>
                   <h3 className="font-medium mb-3">Color: <span className="text-muted-foreground">{selectedColor}</span></h3>
                   <div className="flex flex-wrap gap-2">
-                    {getAvailableColors().map((c) => (
-                      <button
-                        key={c.color}
-                        onClick={() => setSelectedColor(c.color)}
-                        className={`w-10 h-10 rounded-full border-2 transition-all ${
-                          selectedColor === c.color 
-                            ? 'border-primary ring-2 ring-primary ring-offset-2 ring-offset-background' 
-                            : 'border-border'
-                        }`}
-                        style={{ backgroundColor: c.hex || '#666' }}
-                        title={c.color}
-                      />
-                    ))}
+                    {getAvailableColors().map((c) => {
+                      const colorValue = c.hex || getColorFromName(c.color);
+                      return (
+                        <button
+                          key={c.color}
+                          onClick={() => setSelectedColor(c.color)}
+                          className={`w-10 h-10 rounded-full border-2 transition-all ${
+                            selectedColor === c.color 
+                              ? 'border-primary ring-2 ring-primary ring-offset-2 ring-offset-background' 
+                              : 'border-border'
+                          }`}
+                          style={{ backgroundColor: colorValue }}
+                          title={c.color}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               )}

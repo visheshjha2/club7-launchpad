@@ -260,8 +260,8 @@ export default function AdminOrders() {
 
               {/* Order Items Preview */}
               {order.items && order.items.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-border">
-                  <table className="w-full text-sm">
+                <div className="mt-4 pt-4 border-t border-border overflow-x-auto">
+                  <table className="w-full text-sm min-w-[400px]">
                     <thead>
                       <tr className="text-muted-foreground">
                         <th className="text-left py-1">Product</th>
@@ -273,21 +273,23 @@ export default function AdminOrders() {
                     <tbody>
                       {order.items.map((item) => (
                         <tr key={item.id} className="border-t border-border/50">
-                          <td className="py-2 flex items-center gap-2">
-                            {item.product_image && (
-                              <img 
-                                src={item.product_image} 
-                                alt={item.product_name} 
-                                className="w-8 h-8 rounded object-cover"
-                              />
-                            )}
-                            <span className="truncate max-w-[200px]">{item.product_name}</span>
+                          <td className="py-2">
+                            <div className="flex items-center gap-2">
+                              {item.product_image && (
+                                <img 
+                                  src={item.product_image} 
+                                  alt={item.product_name} 
+                                  className="w-8 h-8 rounded object-cover flex-shrink-0"
+                                />
+                              )}
+                              <span className="truncate max-w-[120px] sm:max-w-[200px]">{item.product_name}</span>
+                            </div>
                           </td>
-                          <td className="py-2 text-muted-foreground">
+                          <td className="py-2 text-muted-foreground whitespace-nowrap">
                             {item.color} / {item.size}
                           </td>
                           <td className="py-2 text-center font-medium">{item.quantity}</td>
-                          <td className="py-2 text-right">{formatPrice(item.total_price)}</td>
+                          <td className="py-2 text-right whitespace-nowrap">{formatPrice(item.total_price)}</td>
                         </tr>
                       ))}
                     </tbody>

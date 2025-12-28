@@ -7,7 +7,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Package, ChevronRight, ShoppingBag, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Package, ChevronRight, ShoppingBag, CheckCircle, XCircle, Clock, AlertCircle, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface OrderItem {
   id: string;
@@ -31,6 +43,7 @@ export default function Orders() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -55,6 +68,32 @@ export default function Orders() {
     }
     setLoading(false);
   };
+
+  const handleClearHistory = async () => {
+    setClearing(true);
+    try {
+      // Only delete orders that are delivered or completed
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('user_id', user?.id)
+        .in('status', ['delivered', 'completed']);
+
+      if (error) throw error;
+
+      toast.success('Order history cleared successfully!');
+      fetchOrders();
+    } catch (error: any) {
+      console.error('Clear history error:', error);
+      toast.error('Failed to clear order history');
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const completedOrdersCount = orders.filter(
+    o => ['delivered', 'completed'].includes(o.status.toLowerCase())
+  ).length;
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -112,9 +151,42 @@ export default function Orders() {
 
       <Layout>
         <div className="container mx-auto px-4 lg:px-8 py-12">
-          <h1 className="font-display text-3xl font-bold mb-8">
-            My <span className="text-gradient-gold">Orders</span>
-          </h1>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <h1 className="font-display text-2xl sm:text-3xl font-bold">
+              My <span className="text-gradient-gold">Orders</span>
+            </h1>
+            
+            {completedOrdersCount > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2 w-full sm:w-auto">
+                    <Trash2 className="h-4 w-4" />
+                    Clear History
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Clear Order History?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will remove {completedOrdersCount} delivered/completed order(s) from your history.
+                      <br /><br />
+                      <strong className="text-foreground">Pending and processing orders will NOT be affected.</strong>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleClearHistory}
+                      disabled={clearing}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {clearing ? 'Clearing...' : 'Yes, Clear History'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
 
           {loading ? (
             <div className="space-y-4">
